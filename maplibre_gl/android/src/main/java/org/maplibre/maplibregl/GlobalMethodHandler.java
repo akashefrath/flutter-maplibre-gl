@@ -9,15 +9,14 @@ import io.flutter.embedding.engine.plugins.FlutterPlugin;
 import io.flutter.plugin.common.BinaryMessenger;
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
-import io.flutter.plugin.common.PluginRegistry;
+
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Files;
 import java.util.Map;
 
 class GlobalMethodHandler implements MethodChannel.MethodCallHandler {
@@ -26,15 +25,11 @@ class GlobalMethodHandler implements MethodChannel.MethodCallHandler {
   private static final int BUFFER_SIZE = 1024 * 2;
   @NonNull private final Context context;
   @NonNull private final BinaryMessenger messenger;
-  @Nullable private PluginRegistry.Registrar registrar;
+
   @Nullable private FlutterPlugin.FlutterAssets flutterAssets;
   @Nullable private OfflineChannelHandlerImpl downloadOfflineRegionChannelHandler;
 
-  GlobalMethodHandler(@NonNull PluginRegistry.Registrar registrar) {
-    this.registrar = registrar;
-    this.context = registrar.activeContext();
-    this.messenger = registrar.messenger();
-  }
+
 
   GlobalMethodHandler(@NonNull FlutterPlugin.FlutterPluginBinding binding) {
     this.context = binding.getApplicationContext();
@@ -140,7 +135,7 @@ class GlobalMethodHandler implements MethodChannel.MethodCallHandler {
   private void installOfflineMapTiles(String tilesDb) {
     final File dest = new File(context.getFilesDir(), DATABASE_NAME);
     try (InputStream input = openTilesDbFile(tilesDb);
-        OutputStream output = new FileOutputStream(dest)) {
+        OutputStream output = Files.newOutputStream(dest.toPath())) {
       copy(input, output);
     } catch (IOException e) {
       e.printStackTrace();
@@ -149,12 +144,10 @@ class GlobalMethodHandler implements MethodChannel.MethodCallHandler {
 
   private InputStream openTilesDbFile(String tilesDb) throws IOException {
     if (tilesDb.startsWith("/")) { // Absolute path.
-      return new FileInputStream(new File(tilesDb));
+      return Files.newInputStream(new File(tilesDb).toPath());
     } else {
       String assetKey;
-      if (registrar != null) {
-        assetKey = registrar.lookupKeyForAsset(tilesDb);
-      } else if (flutterAssets != null) {
+      if (flutterAssets != null) {
         assetKey = flutterAssets.getAssetFilePathByName(tilesDb);
       } else {
         throw new IllegalStateException();
